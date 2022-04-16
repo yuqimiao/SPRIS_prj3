@@ -1,0 +1,401 @@
+---
+title: "Yuqi_EDA"
+author: "Yuqi Miao ym2771"
+date: "4/13/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F)
+library(flexsurv)
+library(survival)
+library(MASS)
+library(gtsummary)
+library(tidyverse)
+library(patchwork)
+library(xtable)
+library(survminer)# for log rank visualization
+data = as_tibble(read.table("Menopause.dat", sep = "\t", header = F))
+colnames(data) = c("id", "intake_age", "menopause_age",
+                   "menopause", "race", "education")
+
+data = data %>% 
+  mutate(menopause_time = menopause_age-intake_age) %>% 
+  mutate(race = factor(race, 
+                       levels = c(0,1,2), 
+                       labels = c("white","black", "other")),
+         education = factor(education, levels = 0:3,
+                            labels = c("post graduate",
+                                       "college graduate",
+                                       "some college",
+                                       "high school or less"))
+         ) 
+```
+
+# 0 Data explore
+
+## Descriptive table
+
+```{r}
+t1 = data %>% 
+  mutate(menopause = ifelse(menopause == 0,"censored","complete")) %>% 
+  dplyr::select(-id) %>% 
+  tbl_summary(by = menopause) %>% 
+  add_p()
+t1
+```
+
+```{r}
+glml = glm(menopause~intake_age+race+education, data = data, family = "binomial")
+
+summary(glml)
+```
+
+* The larger the intake age, the more likely the menopause happend during the study time
+* Censoring is more likely to happen when the intake age is small, indicating the insufficient study time for subjects starts early to reach event.
+* Should be common in the study?
+
+[narr]
+For survival age onset as event, there are 2 starting points can be considered: first is the follow up time or time on study; Second is the time at birth;
+
+## Plot the survival time
+
+```{r}
+g1_sort_cens = data %>% 
+  arrange(intake_age) %>% 
+  mutate(censored = ifelse(menopause == 1, "event", "censored")) %>% 
+  filter(menopause == 0) %>% 
+  mutate(sort_id = seq_along(intake_age)) %>% 
+  pivot_longer(c(intake_age, menopause_age),
+               names_to = "categ",
+               values_to = "age"
+               ) %>% 
+  ggplot(aes(y = sort_id, x = age, group = id))+
+  geom_point()+
+  geom_line(aes(color = censored))+
+  facet_grid(education~race)+
+  theme(strip.text.y = element_text(size = 6))+
+  labs(y = "sorted_id",
+       title = "Survival time plot for censored")
+
+g1_sort_cens
+```
+
+```{r}
+g1_sort_event = data %>% 
+  arrange(intake_age) %>% 
+  mutate(censored = ifelse(menopause == 1, "event", "censored")) %>% 
+  filter(menopause == 1) %>% 
+  mutate(sort_id = seq_along(intake_age)) %>% 
+  pivot_longer(c(intake_age, menopause_age),
+               names_to = "categ",
+               values_to = "age"
+               ) %>% 
+  ggplot(aes(y = sort_id, x = age, group = id))+
+  geom_point()+
+  geom_line(aes(color = censored))+
+  facet_grid(education~race)+
+  theme(strip.text.y = element_text(size = 6))+
+  labs(y = "sorted_id",
+       title = "Survival time plot for event")
+
+g1_sort_event
+```
+
+```{r}
+g1_sort_cens/g1_sort_event
+```
+
+* Clearly, the people intake with older age are more likely to be in the event group
+
+
+
+# I. [RT]Starting at Recruitment time: survival on meno_time
+
+## exponential
+
+```{r}
+# model----
+exp1 <- flexsurvreg(Surv(menopause_time, menopause) ~ 1, data = data,
+                      dist = "exp")  # S(t)=e^{-rate*t} 
+plot(exp1, xlab = "menopause time", ylab = "survival probability",
+    main = "KM and exponential estimates of survival curve")
+# median menopause time ----
+## summary(exp1) #get the estimate and ci tab
+summary(exp1, type = "quantile", quantiles = 0.5)
+exp_med_sum = round(summary(exp1, type = "quantile", quantiles = 0.5)[[1]],2)
+exp_med_ci = paste(exp_med_sum[2], "(", exp_med_sum[3], ",", exp_med_sum[4],")", sep = "")
+```
+
+**TODO** plot separately?
+**TODO** how did the function estimate the CI?
+
+* Interpretation: 
+The estimated time that 50% of the subjects will reach to event is `r exp_med_sum` years after the recruitment time.
+* The coefficient CI is calculated as the standard normal Z, then take exponential to get the HR CI;
+
+
+## KM 
+```{r}
+KM1=survfit(Surv(menopause_time, menopause)~1, data = data, conf.type='log')
+plot(KM1, conf.int = T, mark.time = TRUE,xlab="menopause time", ylab="survival probability", main="K-M curve", cex.lab=1.5, cex.main=1.5)
+# obtain survival rate at given time, with CI
+summary(KM1) 
+# median survival time, with CI
+print(KM1)
+```
+
+## comparison
+
+* From the KM curve, we can see until the end of the study, the overal survival rate is above 0.5, generating a NA estimation of median survival time;
+
+* When specify the model parametricly, the median survival time can always be estimated; 
+
+## cox ph 
+
+```{r}
+fit1 = coxph(Surv(menopause_time, menopause)~race+education+intake_age,
+          data=data)
+summary(fit1)
+```
+
+* Interpretation:
+  * Race
+  * Education
+
+* Here the menopause age is linearly dependent to the intake_age, this is greatly reasonable, since at the intake age, no subject is having a menopause. The subject with higher intake age are not at risk at their own intake age, but the subject with lower intake age will be at risk at those age different period.
+
+* For example, if 1 person has intake age 49, then she will definitely have menopause_age > 49, but menopause_age $\neq$ 49 , but for the subject intake with age 45, she will be at risk at age 49;
+
+```{r}
+cz1 <- cox.zph(fit1)
+print(cz1)
+plot(cz1)
+```
+
+
+# II. [TB] Starting at birth: Study on meno_age
+
+[narr]
+In this study, only the women with no menopause at the recruitment time are chosen in the model, which means those who has menopause before the threshold is not selected, which will cause bias. This forms a left-truncated and right-censored(LTRC) data.
+
+Here, the intake_age is regarded as the left-truncated time.
+
+## lm verification for quasi-independence
+
+```{r}
+lm1 = lm(menopause_age~race+education+intake_age, data = subset(data, menopause == 1))
+summary(lm1)
+```
+
+[Discussion]
+* In the problem, the quasi-independent is assumed. This independence implies the intake age should be irrelavant to the menopause age given the covariates when using the age onset as the outcome; 
+* But here in our data, a clear linear relationship between intake age and menopause time; 
+
+
+
+## survival curve
+### exponential 
+
+```{r}
+# model----
+exp2 <- flexsurvreg(Surv(menopause_age, menopause) ~ 1, data = data,dist = "exp")  # S(t)=e^{-rate*t} 
+plot(exp2, xlab = "menopause age", ylab = "survival probability",
+    main = "KM and exponential estimates of survival curve")
+# median menopause time ----
+## summary(exp1) #get the estimate and ci tab
+summary(exp2, type = "quantile", quantiles = 0.5) # Not realistic
+
+# shift model----
+shift = min(data$intake_age)
+# shift = min(data$menopause_age)
+data_shift = data %>% 
+  mutate(menopause_age_shift = menopause_age-shift)
+exp2_shift <- flexsurvreg(Surv(menopause_age_shift, menopause) ~ 1,
+                          data = data_shift,
+                          dist = "weibull")  # S(t)=e^{-rate*t} 
+plot(exp2_shift, xlab = "menopause age shift", ylab = "survival probability",main = "KM and exponential estimates of survival curve")
+# median menopause time ----
+## summary(exp1) #get the estimate and ci tab
+tmp = summary(exp2_shift, type = "quantile", quantiles = 0.5)
+
+c(tmp[[1]][[2]]+shift,
+  tmp[[1]][[3]]+shift,
+  tmp[[1]][[4]]+shift)
+```
+
+### KM 
+```{r}
+KM2=survfit(Surv(menopause_age, menopause)~1, data = data, conf.type='log')
+plot(KM2, conf.int = T, mark.time = TRUE,xlab="menopause age", ylab="survival probability", main="K-M curve", cex.lab=1.5, cex.main=1.5)
+# obtain survival rate at given time, with CI
+summary(KM2, censored = T, time = seq(44,60,1)) 
+# median survival time, with CI
+print(KM2)
+```
+
+Compare 2 summary table
+
+```{r}
+summary(KM1, censored = T, time = seq(44,60,1)) 
+summary(KM2, censored = T, time = seq(44,60,1)) 
+```
+
+
+## Race 
+
+### PH model with only race
+
+For difference of survival among risk
+```{r}
+fit2=coxph(Surv(time = intake_age, 
+                time2 = menopause_age, 
+                event = menopause)~race,
+           data=data)
+summary(fit2)
+anova(fit2)
+g2 = ggsurvplot(survfit(Surv(time = intake_age, 
+                        time2 = menopause_age, 
+                        event = menopause)~race,
+                   data=data), data=data, conf.int = T)
+```
+
+* Overall is siginificant as in the logrank test res: Score (logrank) test = 6.67  on 2 df,   p=0.04
+* There is significant difference of the menopause age between black and white, 
+* No significant difference between other and white
+* Calculate the coefficient and significance between black and others
+  * Here, just change the reference group
+[Question] How to get the fisher information from coxPH?
+
+```{r}
+data_other = data %>% 
+  mutate(race = factor(race, levels = c("other","black","white")))
+
+fit2_other=coxph(Surv(time = intake_age, 
+                time2 = menopause_age, 
+                event = menopause)~race,
+           data=data_other)
+summary(fit2_other)
+texreg::texreg(fit2_other)
+```
+
+
+### PH model for race and education
+
+$$
+\begin{aligned}
+h_i(t) &= h_0(t)exp(\eta_i)\\
+\eta_i&=\beta_1I(race=black)_i\\
+&+\beta_2I(race=others)_i\\
+&+\beta_3I(education=college graduate)_i\\
+&+\beta_4I(education=some college)_i\\
+&+\beta_5I(education=high school or less)_i
+\end{aligned}
+$$
+
+[Discuss]
+
+* How to express the left truncation part in the model?
+  * From the quasi-likelihood assumption and reference [1], the hazard ratio estimated directly without considering the intake_age as left trucation can be used directly;
+
+```{r}
+fit3=coxph(Surv(time = intake_age, time2 = menopause_age, event = menopause)~race+education,
+          data=data)
+tmp = summary(fit3)
+texreg::texreg(fit3)
+g3 = ggsurvplot(survfit(Surv(time = intake_age, 
+                        time2 = menopause_age, 
+                        event = menopause)~race+education,
+                   data=data), data=data, conf.int = T)
+```
+
+  
+```{r}
+fit3_other=coxph(Surv(time = intake_age, time2 = menopause_age, event = menopause)~race+education,
+          data=data_other)
+tmp = summary(fit3_other)
+texreg::texreg(fit3_other)
+```
+
+```{r}
+data_trunc = data %>% 
+  mutate(intake_trunc = intake_age- min(data$intake_age),
+         menopause_trunc = menopause_age- min(data$intake_age))
+
+fit3_trunc=coxph(Surv(time = intake_trunc, time2 = menopause_trunc, event = menopause)~race+education,
+          data=data_trunc)
+summary(fit3_trunc)
+texreg::texreg(fit3)
+g3 = ggsurvplot(survfit(Surv(time = intake_age, 
+                        time2 = menopause_age, 
+                        event = menopause)~race+education,
+                   data=data), data=data, conf.int = T)
+```
+
+### Compare the confounder effect
+
+```{r}
+summary(fit2)
+summary(fit3)
+comp23 = anova(fit2, fit3)
+xtable::xtable(broom::tidy(comp23), caption = "Anova for Model1: Model 1: ~ race, Model 2: ~ race + education")
+```
+
+
+```{r}
+xtable(round(summary(fit2)$coefficient,3), caption = "Model1 fitting")
+xtable(round(summary(fit3)$coefficient,3), caption = "Model2 fitting")
+```
+
+```{r}
+g2$plot+g3$plot
+```
+
+* point and 95% confidence interval estimates for the relative risk of menopause_age for a Black Patient with an Other Ethnicity patient controlling for education.
+
+
+```{r}
+tmp$conf.int[1,] # race black v.s. others
+```
+
+
+* For subject i, black and subject k, others, with the same education
+  
+$$
+HR(t) = \frac{h_i(t)}{h_k(t)}=exp(\beta_1-\beta_2)
+$$
+* Interpretation:
+
+Conditioning on the same education level and survival beyond t, the probability that subject i is menopause at time t is 2.64 times the probability that subject k is menopaused at time t
+
+* an estimate of the baseline survival function for White non-Hispanic patients with Post- graduate education
+
+```{r}
+S0=survfit(fit3,newdata=data.frame(race="white", education = "post graduate")) 
+plot(S0$time,S0$surv,xlab='time',ylim=c(0,1),ylab='Estimated Survival Rate',type='s',lty=1)
+```
+
+* Check your model assumptions
+  * Reference: Kleinbaum and Klein, Survival Analysis.
+  * 3 ways: 
+    * Graphical, 
+    * GOF,  
+    * time-dependent variable
+    
+  * Reference: https://www.emilyzabor.com/tutorials/survival_analysis_in_r_tutorial.html#Assessing_proportional_hazards
+```{r}
+cz <- cox.zph(fit3)
+print(cz)
+plot(cz)
+```
+
+From the results, the assumption of PH holds well
+
+Use the cox.zph function from the survival package. It results in two main things:
+
+1. A hypothesis test of whether the effect of each covariate differs according to time, and a global test of all covariates at once.
+This is done by testiung for an interaction effect between the covariate and log(time). A significant p-value indicates that the proportional hazards assumption is violated
+
+2. Plots of the Schoenfeld residuals
+Deviation from a zero-slope line is evidence that the proportional hazards assumption is violated
+
