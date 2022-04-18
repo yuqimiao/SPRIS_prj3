@@ -12,6 +12,8 @@
 
     * The hazared ratio model
 
+    * **Model 1**
+
     * $$
       \begin{aligned}
       t_i &= x_i-v_i\\
@@ -36,12 +38,24 @@
 
     * Where X is the event time, V is the left truncation time, so all the event is happened conditionally
 
-    * Quasi-independent: If the event age X and the entry age V are conditionally independent, given the covariates Z, then a simple calculation shows that the conditional hazard $h(t | Z, X > V)$ and the unconditional hazard rate, $h(t |Z)$ are equivalent (Andersen, et al., 1993).[1]
+    * Quasi-independent: If the event age X and the entry age V are conditionally independent, given the covariates Z, then a simple calculation shows that the conditional hazard $h(t | Z, X > V)$ and the unconditional hazard rate, $h(t |Z)$ are equivalent (Andersen, et al., 1993)[1]. By assuming queasi-independence, there is no further need to adjust the intake age in the covariates of coxPH.
 
       * But might be violated from our data since the intake_time is correlated with the event time?
 
     * The hazard ratio model
 
+    * **Model 2** (only race)
+      $$
+      \begin{aligned}
+      h_i(x| v_i) &= h_0(x|v_i)exp(\eta_i)\\
+      \eta_i&=\beta_1I(race=black)_i\\
+      &+\beta_2I(race=others)_i
+      \end{aligned}
+      $$
+      
+    
+    * **Model 3**
+    
     * $$
       \begin{aligned}
       h_i(x| v_i) &= h_0(x|v_i)exp(\eta_i)\\
@@ -53,14 +67,16 @@
       \end{aligned}
       $$
 
-* 
-
-* Check the assumption of PH model
-  * The PH assumption requires the hazard ratio is constant over time,  consequently, the relative risk between subject should also be constant if there is no time-dependent covariants included.
+  
 
 
 
 # Results
+
+## Check the assumption of PH model
+
+* The PH assumption requires the hazard ratio is constant over time,  consequently, the relative risk between subject should also be constant if there is no time-dependent covariants included.
+* We first check the log-log KM curve using 2 starting points. As in Fig ??, the stratified log-log KM curve of both variables are slightly non-paralleled in both time measurements, indicating a potential violation of the cox pH assumption [3].  To further test the assumption objectively, a score test of for addition of the time-dependent term is contected for each variable and also globally. From Table ??,  all the time-dependent terms are insignificant, even though there is local crossing of the stratified KM curves. Thus we conclude that there is no evidence to reject the PH assumption for cox model 1 and model 3. We also plot the time-dependent coeffitients against time for all the variables, and the horizontal and flat lines further verifies the validation of PH assumption in models.
 
 ## Survival curve comparison using different starting point
 
@@ -78,7 +94,7 @@
 
 The first model only takes race as covariates to evaluate the main effect without considering confounding effect. From the **model1** output, we can see that there is significant difference on menopause age between black and white, but no significant difference between white and others; To further compare the difference between black and others, a new **model1'** is fitted with others as reference and No significance between race others and black is detected.
 
-To further check the confounder effect of education to the relationship between race and menopause age, **model2** is fitted to get the conditional effect of race given education level.  Even though from the anova using loglikelihood ratio test didn't show siginificant advantage of model 2, the relative risk ratio of menapause age of black v.s. white becomes larger after adjusting the educational level (2.50(1.30, 4.82) after adjusting, 2.14(1.16, 3.95) without adjusting). We conclude that education level is a potential confounder of the relationship between race and menopause age. Controling for education level, the relative risk of menopause age is 2.64(0.98,7.09) for a plack patient v.s. other ethnicity patient， and an estimate of the baseline survival function for White non-Hispanic patients with Post- graduate education is in Fig ??
+To further check the confounder effect of education to the relationship between race and menopause age, **model2** is fitted to get the conditional effect of race given education level.  Even though from the anova using loglikelihood ratio test didn't show siginificant advantage of model 2, the relative risk ratio of menapause age of black v.s. white becomes larger after adjusting the educational level (2.50(1.30, 4.82) after adjusting, 2.14(1.16, 3.95) without adjusting). We conclude that education level is a potential confounder of the relationship between race and menopause age. Controling for education level, the relative risk of menopause age is 2.64(0.98,7.09) for a plack patient v.s. other ethnicity patient， and an estimate of the baseline survival function for White non-Hispanic patients with Post- graduate education is in Fig ??.
 
 Only show race ggsurv plot(g2) ?
 
@@ -92,24 +108,24 @@ Only show race ggsurv plot(g2) ?
 
 [2] Kim et al., “Cox Proportional Hazards Models with Left Truncation and Time-Varying Coefficient.”
 
-
+[3] Kleinbaum and Klein, *Survival Analysis*.
 
 ## Check list
 
 - [ ] menopause time
   - [x] exp survival mdian suvival time, interprete and CI
   - [x] KM survival mdian suvival time, interprete and CI
-  - [ ] Fit PH
-    - [ ] interprete
-    - [ ] check assumption
-- [ ] menopause age
-  - [ ] exp survival mdian suvival time, interprete and CI
-  - [ ] KM survival mdian suvival time, interprete and CI
-  - [ ] Fit PH
-    - [ ] race only for whether 3 race groups are equivalent
-    - [ ] race+education
-      - [ ] test model selection, whether education is useful by LR 
-      - [ ] race significance after adjusting education
+  - [x] Fit PH
+    - [x] interprete
+    - [x] check assumption
+- [x] menopause age
+  - [x] exp survival mdian suvival time, interprete and CI
+  - [x] KM survival mdian suvival time, interprete and CI
+  - [x] Fit PH
+    - [x] race only for whether 3 race groups are equivalent
+    - [x] race+education
+      - [x] test model selection, whether education is useful by LR 
+      - [x] race significance after adjusting education
       - [ ] point and 95% CI, interpretation of RR of Black v.s. other
       - [ ] s0 estimates for white and post
       - [ ] check PH assumption
@@ -387,6 +403,47 @@ raceblack & 0.92 & 2.50 & 0.33 & 2.74 & 0.01 \\
    \hline
 \end{tabular}
 \caption{Model2 fitting} 
+\end{table}
+```
+
+
+
+### Schoenfeld table for models
+
+model 1 (cz1)
+
+```latex
+\begin{table}[ht]
+\centering
+\begin{tabular}{rrrr}
+  \hline
+ & chisq & df & p \\ 
+  \hline
+race & 0.49 & 2.00 & 0.78 \\ 
+  education & 1.37 & 3.00 & 0.71 \\ 
+  intake\_age & 0.45 & 1.00 & 0.50 \\ 
+  GLOBAL & 1.98 & 6.00 & 0.92 \\ 
+   \hline
+\end{tabular}
+\caption{Assumption check for Model1} 
+\end{table}
+```
+
+
+
+```latex
+\begin{table}[ht]
+\centering
+\begin{tabular}{rrrr}
+  \hline
+ & chisq & df & p \\ 
+  \hline
+race & 1.87 & 2.00 & 0.39 \\ 
+  education & 0.92 & 3.00 & 0.82 \\ 
+  GLOBAL & 3.17 & 5.00 & 0.67 \\ 
+   \hline
+\end{tabular}
+\caption{Assumption check for Model3} 
 \end{table}
 ```
 

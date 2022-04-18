@@ -373,6 +373,7 @@ Conditioning on the same education level and survival beyond t, the probability 
 ```{r}
 S0=survfit(fit3,newdata=data.frame(race="white", education = "post graduate")) 
 plot(S0$time,S0$surv,xlab='time',ylim=c(0,1),ylab='Estimated Survival Rate',type='s',lty=1)
+print(S0)
 ```
 
 * Check your model assumptions
