@@ -21,7 +21,7 @@ data = data %>%
                                        "college graduate",
                                        "some college",
                                        "high school or less"))
-  ) %>% 
+  ) %>%
   mutate(race = factor(race, levels = c("other","black","white")))
 
 # data_other = data %>% 
@@ -47,7 +47,7 @@ fit2=coxph(Surv(time = intake_age,
 
 fit3=coxph(Surv(time = intake_age, 
                 time2 = menopause_age, 
-                event = menopause)~race+education,
+                event = menopause)~education+race,
            data=data)
 
 
@@ -57,19 +57,29 @@ texreg::texreg(list(fit1,fit2,fit3))
 # result ----
 ## Test race ----
 ## Test whether race is siginificant
-anova(fit2)
+anova_f2 = anova(fit2)
 ## Test whether race siginificant given education
-anova(fit3)
+anova_f3 = anova(fit3)
 ## compare model
 comp23 = anova(fit2, fit3)
 xtable::xtable(broom::tidy(comp23), caption = "Anova for Model1: Model 1: ~ race, Model 2: ~ race + education")
+xtable::xtable(broom::tidy(anova_f2), caption = "Anova for Model 2: age ~ race")
+xtable::xtable(broom::tidy(anova_f3), caption = "Anova for Model 3: age ~ education + race")
 
 ## baseline ----
 S0=survfit(fit3,newdata=data.frame(race="white", education = "post graduate")) 
 # dev.off()
 png(filename = "pres_vis/baseline.png")
-plot(S0$time,S0$surv,xlab='time',ylim=c(0,1),ylab='Estimated Survival Rate',type='s',lty=1)
+plot(S0,conf.int = T,
+     col = c("black","red",  "red"),
+     xlab='Menopause age',
+     ylim=c(0,1),
+     ylab='Estimated Survival Rate',
+     main = "Survival function for White with Post- graduate education"
+)
 dev.off()
+
+
 
 ## PH assumption ----
 cz1 <- cox.zph(fit1)

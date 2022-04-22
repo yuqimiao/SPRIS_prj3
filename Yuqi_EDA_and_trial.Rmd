@@ -46,6 +46,23 @@ t1
 ```
 
 ```{r}
+t2 = data %>% 
+  mutate(menopause = ifelse(menopause == 0,"censored","complete")) %>% 
+  dplyr::select(-id) %>% 
+  tbl_summary() 
+
+t2 %>% 
+  as_gt() %>% 
+  gt::as_latex()
+
+```
+
+
+```{r}
+as_kable_extra(t2, format = "latex")
+```
+
+```{r}
 glml = glm(menopause~intake_age+race+education, data = data, family = "binomial")
 
 summary(glml)
@@ -299,7 +316,7 @@ $$
   * From the quasi-likelihood assumption and reference [1], the hazard ratio estimated directly without considering the intake_age as left trucation can be used directly;
 
 ```{r}
-fit3=coxph(Surv(time = intake_age, time2 = menopause_age, event = menopause)~race+education,
+fit3=coxph(Surv(time = intake_age, time2 = menopause_age, event = menopause)~education+race,
           data=data)
 tmp = summary(fit3)
 texreg::texreg(fit3)

@@ -27,8 +27,8 @@ data = data %>%
 exp1 <- flexsurvreg(Surv(menopause_time, menopause) ~ 1, data = data,
                     dist = "exp")  # S(t)=e^{-rate*t} 
 KM1=survfit(Surv(menopause_time, menopause)~1, data = data, conf.type='log')
-exp2 <- flexsurvreg(Surv(menopause_age, menopause) ~ 1, data = data,dist = "exp")  # S(t)=e^{-rate*t} 
-KM2=survfit(Surv(menopause_age, menopause)~1, data = data, conf.type='log')
+exp2 <- flexsurvreg(Surv(intake_age,menopause_age, menopause) ~ 1, data = data,dist = "exp")  # S(t)=e^{-rate*t} 
+KM2=survfit(Surv(intake_age, menopause_age, menopause)~1, data = data, conf.type='log')
 ### shift----
 shift = min(data$intake_age)
 # shift = min(data$menopause_age)
@@ -105,6 +105,25 @@ median_surv_tib = tibble(starting_time = c("menopause_time", "menopause_time",
 xtable(median_surv_tib, caption = "Median survival time table")
 
 ## KM survival table
-summary(KM1)
-summary(KM2)
+sum_km1 = summary(KM1)
+sum_km2 = summary(KM2)
+
+# dev.off()
+png(filename = "pres_vis/number_risk.png")
+par(mfrow = c(2,1), mar = rep(4,4))
+plot(sum_km1$time, sum_km1$n.risk,
+     main = "Number of risk as a function of menopause time", 
+     ylab = "Number as risk",
+     xlab = "Menopause time")
+plot(sum_km2$time, sum_km2$n.risk,
+     main = "Number of risk as a function of menopause age", 
+     ylab = "Number as risk",
+     xlab = "Menopause age")
+dev.off()
+
+km1_tib = as_tibble(unclass(sum_km1)[c(1:8, 14,15)])
+km2_tib = as_tibble(unclass(sum_km2)[c(1:8, 14,15)])
+
+xtable(km1_tib, caption = "KM table using menopause time")
+xtable(km2_tib, caption = "KM table using menopause age")
 

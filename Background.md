@@ -30,20 +30,25 @@
   * If we take the age at birth at the starting time
 
     * Because an individual must have no menopause to a sufficient age $V_i$ to enter the retirement community, and all individuals who menopaused prior to the recruitment time were not included in this study, the menopause age considered in this study are left-truncated.[1]
+    * The meaning of left truncation: for people with same age, only those experiencing menopause after recruitment time will be selected
+    * Denote: $T$ (intake age) and $X$ (menopause age);
+    * For left truncated data, the number of individual who are at risk of menopause at time $t_i$: the number of individuals with $T_j <t_i \leq X_j$
     * For the left truncated data, the hazard ratio is estimated conditionally:
-
+    
     $$
-    h(t|Z_i,X_i>V_i) = \frac{P(X_i=t|Z_i,X_i>V_i)}{P(X_i\geq t|Z_i,X_i>V_i)}
+    \begin{align}
+            h(t|Z_i,X_i>T_i) = \frac{P(X_i=t|Z_i,X_i>T_i)}{P(X_i\geq t|Z_i,X_i>T_i)}
+        \end{align}
     $$
-
-    * Where X is the event time, V is the left truncation time, so all the event is happened conditionally
-
-    * Quasi-independent: If the event age X and the entry age V are conditionally independent, given the covariates Z, then a simple calculation shows that the conditional hazard $h(t | Z, X > V)$ and the unconditional hazard rate, $h(t |Z)$ are equivalent (Andersen, et al., 1993)[1]. By assuming queasi-independence, there is no further need to adjust the intake age in the covariates of coxPH.
-
-      * But might be violated from our data since the intake_time is correlated with the event time?
-
+    
+    * Quasi-independent: If the event age X and the entry age V are conditionally independent, given the covariates Z, then a simple calculation shows that the conditional hazard $h(t | Z, X > V)$ and the unconditional hazard rate, $h(t |Z)$ are equivalent (Andersen, et al., 1993)[1]. 
+    
+    * By assuming queasi-independence, there is no further need to adjust the intake age in the covariates of coxPH.
+    
+    * We fit a cox PH model with menopause age as time scale and the intake time asthe left truncation time;
+    
     * The hazard ratio model
-
+    
     * **Model 2** (only race)
       $$
       \begin{aligned}
@@ -76,7 +81,7 @@
 ## Check the assumption of PH model
 
 * The PH assumption requires the hazard ratio is constant over time,  consequently, the relative risk between subject should also be constant if there is no time-dependent covariants included.
-* We first check the log-log KM curve using 2 starting points. As in Fig ??, the stratified log-log KM curve of both variables are slightly non-paralleled in both time measurements, indicating a potential violation of the cox pH assumption [3].  To further test the assumption objectively, a score test of for addition of the time-dependent term is contected for each variable and also globally. From Table ??,  all the time-dependent terms are insignificant, even though there is local crossing of the stratified KM curves. Thus we conclude that there is no evidence to reject the PH assumption for cox model 1 and model 3. We also plot the time-dependent coeffitients against time for all the variables, and the horizontal and flat lines further verifies the validation of PH assumption in models.
+* We first check the log-log KM curve using 2 starting points. As in Fig ??, the stratified log-log KM curve of both variables are slightly non-paralleled in both time measurements, indicating a potential violation of the cox pH assumption [3].  To further test the assumption objectively, we use further test whether the variables in each model has a constant effect over time scale.   From Table ??,  all the time-dependent terms are insignificant, even though there is local crossing of the stratified KM curves. Thus we conclude that there is no evidence to reject the PH assumption for cox model 1 and model 3. We also plot the time-dependent coeffitients against time for all the variables, and the horizontal and flat lines further verify the validation of PH assumption in models.
 
 ## Survival curve comparison using different starting point
 
@@ -94,9 +99,7 @@
 
 The first model only takes race as covariates to evaluate the main effect without considering confounding effect. From the **model1** output, we can see that there is significant difference on menopause age between black and white, but no significant difference between white and others; To further compare the difference between black and others, a new **model1'** is fitted with others as reference and No significance between race others and black is detected.
 
-To further check the confounder effect of education to the relationship between race and menopause age, **model2** is fitted to get the conditional effect of race given education level.  Even though from the anova using loglikelihood ratio test didn't show siginificant advantage of model 2, the relative risk ratio of menapause age of black v.s. white becomes larger after adjusting the educational level (2.50(1.30, 4.82) after adjusting, 2.14(1.16, 3.95) without adjusting). We conclude that education level is a potential confounder of the relationship between race and menopause age. Controling for education level, the relative risk of menopause age is 2.64(0.98,7.09) for a plack patient v.s. other ethnicity patient， and an estimate of the baseline survival function for White non-Hispanic patients with Post- graduate education is in Fig ??.
-
-Only show race ggsurv plot(g2) ?
+To further check the confounder effect of education to the relationship between race and menopause age, **model2** is fitted to get the conditional effect of race given education level.  Even though from the **anova table (anova(fit2, fit3))** using loglikelihood ratio test didn't show siginificant advantage of model 2, the relative risk ratio of menapause age of black v.s. white becomes larger after adjusting the educational level (2.50(1.30, 4.82) after adjusting, 2.14(1.16, 3.95) without adjusting). We conclude that education level is a potential confounder of the relationship between race and menopause age. Controling for education level, the relative risk of menopause age is 2.64(0.98,7.09) for a plack patient v.s. other ethnicity patient， and an estimate of the baseline survival function for White non-Hispanic patients with Post- graduate education is in Fig ??.
 
 # Conclusion and discussion
 
