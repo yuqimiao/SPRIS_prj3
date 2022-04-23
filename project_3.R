@@ -344,3 +344,30 @@ ggplot(dat, aes(x=intake_age, fill=as.factor(menopause))) +
                     values=c("#69b3a2", "#404080"))+
   xlab("Time on Study")+
   facet_grid(race~education)
+
+
+
+library(Publish)
+
+dat$race = relevel(dat$race, ref="White")
+mod3 = coxph(Surv(menopause_time, menopause) ~ race + education + intake_age,
+             data = dat)
+
+mod3.1 = coxph(Surv(intake_age, menopause_age, menopause) ~ race,
+               data = dat)
+
+mod3.2 = coxph(Surv(intake_age, menopause_age, menopause) ~ race + education ,
+               data = dat)
+
+tab3 = as.data.frame(publish(mod3)$regressionTable)
+row.names(tab3) = NULL
+xtable(tab3)
+
+tab3.1 = as.data.frame(publish(mod3.1)$regressionTable)
+row.names(tab3.1) = NULL
+xtable(tab3.1)
+
+
+tab3.2 = as.data.frame(publish(mod3.2)$regressionTable)
+row.names(tab3.2) = NULL
+xtable(tab3.2)
